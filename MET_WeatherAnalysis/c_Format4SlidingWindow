@@ -1,0 +1,84 @@
+# FORMATTING MY DATASETS TO RUN THE SLIDING WINDOW
+
+# PACKAGES
+library(tidyverse)
+
+# LOAD DATA
+## ENVIRONMENTAL COVARIATES FOR ALL FIELDYEARS
+wd.all <- read.csv("./../Output/OrganizedWeatherVariables/Ready2Slide_AllECs_20250716.csv", header = T)
+## SILKING AND INCIDENCE FOR ALL FIELDYEARS
+meta <- read.csv("./../Data/MEG-CleanCorn-META_20250709.csv", header = T)
+## GER
+meta$GER_inc <- with(meta, ifelse(GER_inc <= NumEars, GER_inc, NA))
+## FER
+meta$FER_inc <- with(meta, ifelse(FER_inc <= NumEars, FER_inc, NA))
+## Insect
+meta$Insect_inc <- with(meta, ifelse(Insect_inc <= NumEars, Insect_inc, NA))
+## REMOVE INBRED PARENTS
+meta %>% filter(Parent == 0) -> meta.hyb
+
+## LIST TO STORE EVERYTHING
+all.windows.list <- list()
+hyb.sums <- list()
+wd.filt.list <- list()
+
+# FORMATTING FOR FUNCTION
+## VECTOR OF FIELDYEARS FOR FILTERING
+my.fieldyears <- unique(wd.all$FieldYear)
+
+## RUNNING THE FUNCTION IN A LOOP
+for (j in c(1:length(my.fieldyears))) {
+  field.yr <- my.fieldyears[[j]]
+  hyb.df <- meta.hyb[meta.hyb$FieldYear == field.yr, ]
+  
+  ## SUMMARISE BY PLOT
+  hyb.df %>% group_by(Plot) %>% 
+    summarise(meanSD = mean(DTS, na.rm = T),
+              Plant = first(PlantingJulian, na_rm = T),
+              Harvest = first(HarvestJulian, na_rm = T),
+              Field = factor(first(FieldYear)),
+              PlantYr = first(Planting.Year, na_rm = T),
+              Name = factor(paste0("Windows-14day_", first(FieldYear))),
+              .groups = "drop") -> hyb.df2
+  ## ADD TO EXTERNAL LIST
+  hyb.sums[[j]] <- hyb.df2
+  
+  for (k in c(1:length(my.fieldyears))) {
+    # SKIP IF REQ DATA MISSING
+    if(is.na(hyb.df2$Plant[k]) || is.na(hyb.df2$meanSD[k]) || is.na(hyb.df2$PlantYr[k])) {
+      warning(paste("Skipping entry k = ", k, "which is hybrid ", hyb.df2$Plot[k], 
+                    "in ", hyb.df2$Field, ". There is an NA in Plant, meanSD, or PlantYr \n"))
+      next
+    }
+       
+    # EXTRACT KEY DATES
+    ## SILKING, CENTER OF SLIDING WINDOW
+    day0j <-(hyb.df2$Plant[k] + hyb.df2$meanSD[k])
+    day0 <- as.Date(day0j, origin = paste0(hyb.df2$PlantYr[k],"-01-01"))
+    ## FIRST DAY, 60 DAYS AFTER SILKING
+    day60j <- (day0j + 60)
+    day60 <- as.Date(day60j, origin = paste0(hyb.df2$PlantYr[k],"-01-01"))
+    ## LAST DAY, 30 DAYS PRIOR TO SILKING
+    day30j <- (day0j - 30)
+    dayneg30 <- as.Date(day30j, origin = paste0(hyb.df2$PlantYr[k],"-01-01"))
+    
+    # FILTER WEATHER DATA
+    wd.all[wd.all$FieldYear == my.fieldyears[[j]] & wd.all$DATE >= as.Date(dayneg30) 
+           & wd.all$DATE <= as.Date(day60), ] -> wd.filt
+    wd.filt$Day.Rel2Silk <- seq(from = -30, by = 1, length.out = nrow(wd.filt))
+    wd.filt$Plot <- hyb.df2$Plot[k]
+    
+    ### STORE FILTERED WEATHER DATA
+    wd.filt.list[[paste0(field.yr,"_", hyb.df2$Plot[k])]] <- wd.filt
+    
+  }
+
+}
+
+# EXPORT FOR SLIDING WINDOW STEP
+## MAKE FINAL BOSS DFS
+hyb.sums.df <- do.call(rbind, hyb.sums)
+wd.filt.df <- do.call(rbind, wd.filt.list)
+
+write.csv(hyb.sums.df, "./../Output/Formatted4SlidingWindow/HybridSummaries_AllEnvs.csv", row.names = F)
+write.csv(wd.filt.df, "./../Output/Formatted4SlidingWindow/FilteredECs_AllEnvs.csv", row.names = F)

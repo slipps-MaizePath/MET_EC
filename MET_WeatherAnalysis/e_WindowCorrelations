@@ -1,0 +1,110 @@
+# CORRELATIONS BETWEEN ECS AT MULTIPLE WINDOWS
+
+# PACKAGES
+library(tidyverse)
+library(stats)
+library(boot)
+
+# BOOT STRAPPING
+## BOOT STRAP FUNCTION
+boot_cor <- function(data, indices) {
+  d <- data[indices,] #sample with replacement
+  #controlling for 0 Standard Deviation
+  if (sd(d[,1], na.rm = T) == 0 || sd(d[,2], na.rm = T) == 0) {
+    return(NA)
+  }
+  cor.test(d[,1], d[,2], method = "spearman", exact = FALSE)$estimate
+}
+
+# CORRELATION FUNCTION, CALLS BOOT STRAPPING FUNCTION
+BootsCorrs <- function(df, dis.var, firstweathervar, lastweathervar, n_boots) {
+  #results df
+  res.df <- data.frame(Disease = character(),
+                       Window_Weather = character(),
+                       Window = character(),
+                       WeatherVar = character(),
+                       Rho.Spear = numeric(),
+                       Rho.Boot = numeric(),
+                       #CI_Lower = numeric(),
+                       #CI_Upper = numeric(),
+                       PVal = numeric())
+  #vector of column names
+  columns <- colnames(df)
+  #get the indices of the column names (my dataframe is HUGE)
+  dis.col <- which(columns == dis.var)
+  weather.startcolumn <- which(columns == firstweathervar)
+  weather.endcolumn <- which(columns == lastweathervar)
+  
+  #now loop through everything to get a million correlations
+  for (i in c(weather.startcolumn:weather.endcolumn)) {
+    
+    #setseed for reproducibility
+    set.seed(20240809)
+    #bootstrapping rho
+    dat4boot <- df[,c(dis.col, i)]
+    boot.res <- boot(data = dat4boot, statistic = boot_cor, R = n_boots)
+    #boot strapped rho
+    boot.rho <- mean(boot.res$t, na.rm = TRUE)
+    #perform correlation test
+    result <- cor.test(df[,dis.col], df[,i], method = "spearman", exact = FALSE)
+    
+    #split Window_Weather column
+    split_name <- str_split_fixed(columns[i], "_", 2)
+    
+    #saving everything to a temporary dataframe
+    temp.df <- data.frame(Disease = columns[dis.col],
+                          Window = split_name[1],
+                          WeatherVar = split_name[2],
+                          Rho.Spear = result$estimate[[1]],
+                          Rho.Boot = boot.rho,
+                          PVal = result$p.value[[1]],
+                          stringsAsFactors = FALSE)
+    #combine temporary and result dataframe
+    res.df <- rbind(res.df, temp.df)
+  }
+  return(res.df)
+}
+
+# FORMAT WEATHER IN WINDOWS
+## LOAD
+windows <- read.csv("./../Output/ECsinWindows/ECSinWindows_AllEnvs.csv", header = T)
+
+## MAKE VERY WIDE
+### STAGE 1: MAKE IT LONG
+my.cols <- colnames(windows)[c(1:69)]
+windows.long <- pivot_longer(windows, cols = all_of(my.cols), names_to = "EC", values_to = "VAL") #64,998 unique datapoints
+### STAGE 2: MAKE IT WIDE
+windows.wide <- pivot_wider(windows.long, names_from = c("Window_Range", "EC"), values_from = "VAL")
+
+# COMBINE WITH EAR ROT INCIDENCE DATA
+meta <- read.csv("./../Data/MEG-CleanCorn-META_20250709.csv", header = T)
+meta$FieldYearPed <- paste(meta$FieldYear, meta$Plot, sep = "_")
+#GER
+meta$GER_inc <- with(meta, ifelse(GER_inc <= NumEars, GER_inc, NA))
+#FER
+meta$FER_inc <- with(meta, ifelse(FER_inc <= NumEars, FER_inc, NA))
+#Insect
+meta$Insect_inc <- with(meta, ifelse(Insect_inc <= NumEars, Insect_inc, NA))
+#keep only the parents
+meta %>% filter(Parent == 0) -> meta.hyb
+
+
+windows.wide$FieldYearPed <- paste(windows.wide$FieldYear, windows.wide$Genotype, sep = "_")
+
+meta.windows <- merge(meta.hyb, windows.wide, by.x = "FieldYearPed", by.y = "FieldYearPed", all.x = T)
+meta.windows2 <- meta.windows[!is.na(meta.windows$FieldYear.y), ]
+
+# RUN FUNCTION
+## TAKES ~10 MIN ON OFFICE DESKTOP
+Sys.time()
+ger <- BootsCorrs(meta.windows2, "GER_inc", '43to56_R.AH', '-27to-14_RH2M.90.rl.count6', 1000)
+Sys.time()
+fer <- BootsCorrs(meta.windows2, "FER_inc", '43to56_R.AH', '-27to-14_RH2M.90.rl.count6', 1000)
+Sys.time()
+insect <- BootsCorrs(meta.windows2, "Insect_inc", '43to56_R.AH', '-27to-14_RH2M.90.rl.count6', 1000)
+Sys.time()
+
+# COMBINE AND SAVE
+all.corrs <- do.call('rbind', list(ger, fer, insect)) #720 obs
+write.csv(all.corrs, "./../Output/EarrotWeatherCorrelations-14dayWindows_20250721.csv", row.names = F)
+

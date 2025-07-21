@@ -1,0 +1,200 @@
+# DOWNLOADING WEATHER DATA FROM NASAPOWER
+
+# PACKAGES
+library(tidyverse)
+library(nasapower)
+
+# LOAD AND FORMAT DATAFRAME
+meta <- read.csv("./../Data/MEG-CleanCorn-META_20250709.csv", header = T)
+my.pars <- c("GWETROOT", "GWETTOP", "PS", "QV2M", "RH2M", "T2M", "T2MDEW", 
+             "TS", "TSOIL1", "PRECTOTCORR")
+#data frame for environments, latitudes, longitudes, plant date, harvest date
+meta %>% group_by(FieldYear) %>% 
+  summarise(LAT = first(Latitude), LON = first(Longitude), 
+            PlantDt = first(PlantingDate), HarvDt = first(HarvestDate)) -> envs
+
+#empty dataframe to store weather info
+raw.wd <- data.frame(matrix(ncol = 18, nrow = 0))
+colnames(raw.wd) <- c("LON", "LAT", "YEAR", "MO", "DY", "HR", "GWETROOT", "GWETTOP",
+                      "PS", "QV2M", "RH2M", "T2M", "T2MDEW", "TS", "TSOIL1", "PRECTOTCORR",
+                      "DATE", "FIELDYEAR")
+
+# RUN ENV BY ENV
+for (i in c(1:5)) {
+  #first skip anything missing dates
+  if (is.na(envs[i, 4]) | is.na(envs[i, 5])) {
+    warning(paste("Skipping iteration", envs[i, 1], "- No LAT or LON provided"))
+    next
+  }
+  #pull out the hourly weather data - by environment!
+  message(paste(Sys.time(), ": Processing FIELDYEAR", envs[[i,1]]),".", 
+          "There are ", length(envs$FieldYear)-i, " FIELDYEARS LEFT!")
+  #my LON and LAT
+  lon <- as.numeric(envs[[i,3]])
+  lat <- as.numeric(envs[[i,2]])
+  #my planting and harvest dates
+  plant <- as.Date(envs[[i,4]], "%m/%d/%Y")
+  harvest <- as.Date(envs[[i,5]], "%m/%d/%Y")
+  
+  wd <- get_power(
+    community = "ag", #agroclimatology
+    pars = my.pars, #pre definied
+    lonlat = c(lon, lat), #dbl chck lonlat right order
+    temporal_api = "hourly",
+    dates = c(plant, harvest)
+  )
+  
+  #add column for date
+  wd$DATE <- as.Date(paste0(wd$MO, "-",wd$DY,"-",wd$YEAR), "%m-%d-%Y")
+  #add column for environment
+  wd$FIELDYEAR <- envs[[i,1]]
+  #add to the external dataframe
+  raw.wd <- rbind(raw.wd, wd)
+  
+  #pause so i dont overload the sever
+  Sys.sleep(90) #90 sec between requests otherwise the server will overload and kick me out
+}
+
+#set 6:10
+for (i in c(6:10)) {
+  #first skip anything missing dates
+  if (is.na(envs[i, 4]) | is.na(envs[i, 5])) {
+    warning(paste("Skipping iteration", envs[i, 1], "- No LAT or LON provided"))
+    next
+  }
+  #pull out the hourly weather data - by environment!
+  message(paste(Sys.time(), ": Processing FIELDYEAR", envs[[i,1]]),".", 
+          "There are ", length(envs$FieldYear)-i, " FIELDYEARS LEFT!")
+  #my LON and LAT
+  lon <- as.numeric(envs[[i,3]])
+  lat <- as.numeric(envs[[i,2]])
+  #my planting and harvest dates
+  plant <- as.Date(envs[[i,4]], "%m/%d/%Y")
+  harvest <- as.Date(envs[[i,5]], "%m/%d/%Y")
+  
+  wd <- get_power(
+    community = "ag", #agroclimatology
+    pars = my.pars, #pre definied
+    lonlat = c(lon, lat), #dbl chck lonlat right order
+    temporal_api = "hourly",
+    dates = c(plant, harvest)
+  )
+  
+  #add column for date
+  wd$DATE <- as.Date(paste0(wd$MO, "-",wd$DY,"-",wd$YEAR), "%m-%d-%Y")
+  #add column for environment
+  wd$FIELDYEAR <- envs[[i,1]]
+  #add to the external dataframe
+  raw.wd <- rbind(raw.wd, wd)
+  
+  #pause so i dont overload the sever
+  Sys.sleep(90) #90 sec between requests otherwise the server will overload and kick me out
+}
+#set 11:15
+for (i in c(11:15)) {
+  #first skip anything missing dates
+  if (is.na(envs[i, 4]) | is.na(envs[i, 5])) {
+    warning(paste("Skipping iteration", envs[i, 1], "- No LAT or LON provided"))
+    next
+  }
+  #pull out the hourly weather data - by environment!
+  message(paste(Sys.time(), ": Processing FIELDYEAR", envs[[i,1]]),".", 
+          "There are ", length(envs$FieldYear)-i, " FIELDYEARS LEFT!")
+  #my LON and LAT
+  lon <- as.numeric(envs[[i,3]])
+  lat <- as.numeric(envs[[i,2]])
+  #my planting and harvest dates
+  plant <- as.Date(envs[[i,4]], "%m/%d/%Y")
+  harvest <- as.Date(envs[[i,5]], "%m/%d/%Y")
+  
+  wd <- get_power(
+    community = "ag", #agroclimatology
+    pars = my.pars, #pre definied
+    lonlat = c(lon, lat), #dbl chck lonlat right order
+    temporal_api = "hourly",
+    dates = c(plant, harvest)
+  )
+  
+  #add column for date
+  wd$DATE <- as.Date(paste0(wd$MO, "-",wd$DY,"-",wd$YEAR), "%m-%d-%Y")
+  #add column for environment
+  wd$FIELDYEAR <- envs[[i,1]]
+  #add to the external dataframe
+  raw.wd <- rbind(raw.wd, wd)
+  
+  #pause so i dont overload the sever
+  Sys.sleep(90) #90 sec between requests otherwise the server will overload and kick me out
+}
+#set 16:20
+for (i in c(16:20)) {
+  #first skip anything missing dates
+  if (is.na(envs[i, 4]) | is.na(envs[i, 5])) {
+    warning(paste("Skipping iteration", envs[i, 1], "- No LAT or LON provided"))
+    next
+  }
+  #pull out the hourly weather data - by environment!
+  message(paste(Sys.time(), ": Processing FIELDYEAR", envs[[i,1]]),".", 
+          "There are ", length(envs$FieldYear)-i, " FIELDYEARS LEFT!")
+  #my LON and LAT
+  lon <- as.numeric(envs[[i,3]])
+  lat <- as.numeric(envs[[i,2]])
+  #my planting and harvest dates
+  plant <- as.Date(envs[[i,4]], "%m/%d/%Y")
+  harvest <- as.Date(envs[[i,5]], "%m/%d/%Y")
+  
+  wd <- get_power(
+    community = "ag", #agroclimatology
+    pars = my.pars, #pre definied
+    lonlat = c(lon, lat), #dbl chck lonlat right order
+    temporal_api = "hourly",
+    dates = c(plant, harvest)
+  )
+  
+  #add column for date
+  wd$DATE <- as.Date(paste0(wd$MO, "-",wd$DY,"-",wd$YEAR), "%m-%d-%Y")
+  #add column for environment
+  wd$FIELDYEAR <- envs[[i,1]]
+  #add to the external dataframe
+  raw.wd <- rbind(raw.wd, wd)
+  
+  #pause so i dont overload the sever
+  Sys.sleep(90) #90 sec between requests otherwise the server will overload and kick me out
+}
+#set 21:23
+for (i in c(21:23)) {
+  #first skip anything missing dates
+  if (is.na(envs[i, 4]) | is.na(envs[i, 5])) {
+    warning(paste("Skipping iteration", envs[i, 1], "- No LAT or LON provided"))
+    next
+  }
+  #pull out the hourly weather data - by environment!
+  message(paste(Sys.time(), ": Processing FIELDYEAR", envs[[i,1]]),".", 
+          "There are ", length(envs$FieldYear)-i, " FIELDYEARS LEFT!")
+  #my LON and LAT
+  lon <- as.numeric(envs[[i,3]])
+  lat <- as.numeric(envs[[i,2]])
+  #my planting and harvest dates
+  plant <- as.Date(envs[[i,4]], "%m/%d/%Y")
+  harvest <- as.Date(envs[[i,5]], "%m/%d/%Y")
+  
+  wd <- get_power(
+    community = "ag", #agroclimatology
+    pars = my.pars, #pre definied
+    lonlat = c(lon, lat), #dbl chck lonlat right order
+    temporal_api = "hourly",
+    dates = c(plant, harvest)
+  )
+  
+  #add column for date
+  wd$DATE <- as.Date(paste0(wd$MO, "-",wd$DY,"-",wd$YEAR), "%m-%d-%Y")
+  #add column for environment
+  wd$FIELDYEAR <- envs[[i,1]]
+  #add to the external dataframe
+  raw.wd <- rbind(raw.wd, wd)
+  
+  #pause so i dont overload the sever
+  Sys.sleep(90) #90 sec between requests otherwise the server will overload and kick me out
+}
+
+# SAVE IT
+write.csv(raw.wd, "./../Output/RawWeatherData_AllFieldYears_20250716.csv", row.names = F)

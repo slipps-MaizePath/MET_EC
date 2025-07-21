@@ -1,0 +1,103 @@
+# SLIDING WINDOW TO AGGREGATE ECS INTO WINDOWS CENTERED AROUND SILKING
+# See (Dalla Lana et al. 2021 https://dx.doi.org/10.1094/pdis-05-20-0952-re) 
+# See (Dalla Lana et al. 2021 https://www.ncbi.nlm.nih.gov/pubmed/34009008)
+
+# PACKAGES
+library(tidyverse)
+
+# PRE-SETS: CAN CHANGE THESE
+wind = 14
+start = 56
+end = -28
+
+# THE FUNCTION: DO NOT TOUCH! (THIS MEANS YOU)
+ChaChaSlide <- function(df, WINDOW_SIZE, START_DAY, END_DAY, FIELDYEAR, GENOTYPE, PATH, NAME) {
+  # EMPTY LISTS HOLDS RESULTS OF EACH WINDOW
+  res.list <- list()
+  i <- 1
+  # FIND INDEX OF STARTING JULIAN DAY INPUT DF
+  current.day <- START_DAY
+  
+  # CALCULATE WINDOW AVERAGE
+  while (current.day - WINDOW_SIZE + 1 >= END_DAY) {
+   # CACLULATE START AND END DAYS FOR CURRENT WINDOW
+    start_day2 <- current.day - (WINDOW_SIZE - 1)
+    end_day2 <- current.day
+  # CALCULATE AVERAGE VALUES OF ECS IN THE WINDOW
+    df %>% filter(Day.Rel2Silk >= start_day2 & Day.Rel2Silk <= end_day2) %>%
+      summarise(
+        # RAINFALL
+        R.AH = sum(R.AH, na.rm = T), R.S = sum(R.S, na.rm = T), R.PA = sum(R.PA, na.rm = T),
+        # RELATIVE HUMIDITY AT 2M
+        RH2M.A = mean(RH2M.A, na.rm = T), RH2M.min = mean(RH2M.min, na.rm = T), RH2M.max = mean(RH2M.max, na.rm = T),
+        RH2M.RH80 = sum(RH2M.RH80, na.rm = T), RH2M.RH90 = sum(RH2M.RH90, na.rm = T), 
+        # TEMPERATURE AT SURFACE
+        TS.A = mean(TS.A, na.rm = T), TS.min = mean(TS.min, na.rm = T), TS.max = mean(TS.max, na.rm = T), TS.Dif = mean(TS.Dif, na.rm = T),
+        TS.L9 = sum(TS.L9, na.rm = T), TS.L15 = sum(TS.L15, na.rm = T), TS.L20 = sum(TS.L20, na.rm = T), TS.L23 = sum(TS.L23, na.rm = T),
+        TS.L25 = sum(TS.L25, na.rm = T), TS.L30 = sum(TS.L30, na.rm = T), TS.G15 = sum(TS.G15, na.rm = T), TS.G20 = sum(TS.G20, na.rm = T),
+        TS.G23 = sum(TS.G23, na.rm = T), TS.G25 = sum(TS.G25, na.rm = T), TS.G30 = sum(TS.G30, na.rm = T), TS.9T30 = sum(TS.9T30, na.rm = T),
+        TS.15T30 = sum(TS.15T30, na.rm = T), TS.20T30 = sum(TS.20T30, na.rm = T), TS.25T33 = sum(TS.25T33, na.rm = T),
+        # TEMPERATURE AT 2m
+        T2M.A = mean(T2M.A, na.rm = T), T2M.min = mean(T2M.min, na.rm = T), T2M.max = mean(T2M.max, na.rm = T), T2M.Dif = mean(T2M.Dif, na.rm = T),
+        T2M.L9 = sum(T2M.L9, na.rm = T), T2M.L15 = sum(T2M.L15, na.rm = T), T2M.L20 = sum(T2M.L20, na.rm = T), T2M.L23 = sum(T2M.L23, na.rm = T),
+        T2M.L25 = sum(T2M.L25, na.rm = T), T2M.L30 = sum(T2M.L30, na.rm = T), T2M.G15 = sum(T2M.G15, na.rm = T), T2M.G20 = sum(T2M.G20, na.rm = T),
+        T2M.G23 = sum(T2M.G23, na.rm = T),  T2M.G25 = sum(T2M.G25, na.rm = T), T2M.G30 = sum(T2M.G30, na.rm = T), T2M.9T30 = sum(T2M.9T30, na.rm = T),
+        T2M.15T30 = sum(T2M.15T30, na.rm = T), T2M.20T30 = sum(T2M.20T30, na.rm = T), T2M.25T33 = sum(T2M.25T33, na.rm = T),
+        # TEMPERATURE AT 2M + RH AT 2M
+        T2MRH2M.15T30nRH80 = sum(T2MRH2M.15T30nRH80, na.rm = T), T2MRH2M.15T30nRH90 = sum(T2MRH2M.15T30nRH90, na.rm = T), 
+        T2MRH2M.9T30nRH80 = sum(T2MRH2M.9T30nRH80, na.rm = T), T2MRH2M.9T30nRH90 = sum(T2MRH2M.9T30nRH90, na.rm = T), 
+        # SOIL MOISTURE TRAITS
+        TSL1.A = mean(TSL1.A, na.rm = T), TSL1.min = mean(TSL1.min, na.rm = T), TSL1.max = mean(TSL1.max, na.rm = T),
+        SSM.A = mean(SSM.A, na.rm = T), SSM.max = mean(SSM.max, na.rm = T), SSM.min = mean(SSM.min, na.rm = T),
+        # ROOT MOISTURE TRAITS
+        RM.A = mean(RM.A, na.rm = T), RM.min = mean(RM.min, na.rm = T), RM.max = mean(RM.max, na.rm = T),
+        # AIR MOISTURE REALTED TRAITS
+        DP2M.A = mean(DP2M.A, na.rm = T), DP2M.min = mean(DP2M.min, na.rm = T), DP2M.max = mean(DP2M.max, na.rm = T),
+        DPD = mean(DPD, na.rm = T), GDD = mean(GDD, na.rm = T), VPD = mean(VPD, na.rm = T),
+        # CUMULATIVE WINDOWS
+        RH2M.80.rl.max = mean(RH2M.80.rl.max, na.rm = T), RH2M.90.rl.max = mean(RH2M.90.rl.max, na.rm = T),
+        RH2M.80.rl.count6 = sum(RH2M.80.rl.count6, na.rm = T), RH2M.90.rl.count6 = sum(RH2M.90.rl.count6, na.rm = T) 
+      ) -> avg.vals
+  # DETERMINE THE RANGE OF DAYS RELATIVE TO SILKING FOR THE WINDOW
+  avg.vals$Window_Range <- paste0(start_day2, "to", end_day2)
+  avg.vals$FieldYear <- FIELDYEAR
+  avg.vals$Genotype <- GENOTYPE
+  # ADD TO THE RESULT LIST
+  res.list[[i]] <- avg.vals
+  i <- i + 1 #SO YOU DONT REPLACE WHAT YOU JUST ADDED IN THE NEXT ITERATION
+  # MOVE TO NEXT WINDOW (SLIDE BACKWARDS)
+  current.day <- current.day - WINDOW_SIZE
+  }
+  # COMBINE EVERYTHING INTO ONE DF
+  return(bind_rows(res.list))
+}
+
+# LOAD DATA, MAKE STORAGE LISTS
+ecs <- read.csv("./../Output/Formatted4SlidingWindow/FilteredECs_AllEnvs.csv", header = T)
+my.fys <- unique(ecs$FieldYear)
+
+# LIST OF RESULTS
+res.windows <- list()
+
+# LOOPING AND CALLING THE FUNCTION
+for (i in c(1:length(my.fys))) {
+  fy <- fy2keep[i]
+  
+  # FILTER DATAFRAMES BY FIELDYEAR
+  ecs.filt <- ecs[ecs$FieldYear == fy, ]
+  
+  for (j in c(1:length(unique(ecs.filt$Plot)))) {
+    ecs.filt2 <- ecs.filt[ecs.filt$Plot == unique(ecs.filt$Plot)[j], ]
+    
+    res <- ChaChaSlide(ecs.filt2, WINDOW_SIZE = wind, START_DAY = start, END_DAY = end,
+                       FIELDYEAR = fy, GENOTYPE = unique(ecs.filt$Plot)[j], PATH = path, NAME = "TEST")
+    
+    res.windows[[length(res.windows)+1]] <- res
+  }
+    
+}
+
+# COMBINE AND SAVE
+final.out <- do.call(rbind, res.windows)
+
+write.csv(final.out, "./../Output/ECsinWindows/ECSinWindows_AllEnvs.csv", row.names = F)

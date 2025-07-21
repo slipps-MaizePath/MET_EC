@@ -1,0 +1,101 @@
+# COMPARISON OF MODELS WITH EC-BY-WINDOW TO NULL MODELS
+
+# PACKAGES
+library(tidyverse)
+library(lme4)
+library(ggplot2)
+
+# WHICH ECS AND WHEN ASSOCIATED WITH EAR ROT INCIDENCE.
+# SEE: https://doi.org/10.1038/s41467-023-42687-4
+
+# LOAD AND FORMAT
+## EAR ROTS
+meta <- read.csv("./../Data/MEG-CleanCorn-META_20250709.csv", header = T)
+meta$FieldYearPed <- paste(meta$FieldYear, meta$Plot, sep = "_")
+#GER
+meta$GER_inc <- with(meta, ifelse(GER_inc <= NumEars, GER_inc, NA))
+#FER
+meta$FER_inc <- with(meta, ifelse(FER_inc <= NumEars, FER_inc, NA))
+#Insect
+meta$Insect_inc <- with(meta, ifelse(Insect_inc <= NumEars, Insect_inc, NA))
+#keep only the parents
+meta %>% filter(Parent == 0) -> meta.hyb
+## ECS
+windows <- read.csv("./../Output/ECsinWindows/ECSinWindows_AllEnvs.csv", header = T)
+
+## MAKE VERY WIDE
+### STAGE 1: MAKE IT LONG
+my.cols <- colnames(windows)[c(1:69)]
+windows.long <- pivot_longer(windows, cols = all_of(my.cols), names_to = "EC", values_to = "VAL") #64,998 unique datapoints
+### STAGE 2: MAKE IT WIDE
+windows.wide <- pivot_wider(windows.long, names_from = c("Window_Range", "EC"), values_from = "VAL")
+
+## COMBINE
+windows.wide$FieldYearPed <- paste(windows.wide$FieldYear, windows.wide$Genotype, sep = "_")
+
+meta.windows <- merge(meta.hyb, windows.wide, by.x = "FieldYearPed", by.y = "FieldYearPed", all.x = T)
+meta.windows2 <- meta.windows[!is.na(meta.windows$FieldYear.y), ]
+
+colnames(meta.windows2) <- make.names(colnames(meta.windows2))
+
+# EWAS FUNCTION
+MostSigWVs <- function(df, Yvar, Gvar, Evar, Transform, FirstWV, LastWV) {
+  #DF to save the results
+  result.df <- data.frame('Chisq' = numeric(), 'PVal' = numeric(), 'EC' = character(), 'Disease' = character())
+  #vector of column names
+  columns <- colnames(df)
+  WV.startcol <- which(columns == FirstWV)
+  WV.endcol <- which(columns == LastWV)
+  
+  #ravioli ravioli give me the formuoli
+  #formuoli<- paste("log(",Yvar, "+ 0.375)", "~", "(1|", Gvar, ")", "+ (1|", Evar, ")", "+ (1|", Evar, ":", Gvar, ")")
+  formuoli<-paste(Transform, Yvar, ")", "~", "(1|", Gvar, ")", "+ (1|", Evar, ")", "+ (1|", Evar, ":", Gvar, ")")
+  #run the noec model
+  model.noec <- lmer(formula(formuoli), data = df, REML = FALSE)
+  
+  #loop to run and compare a million mixed models
+  for (i in c(WV.startcol:WV.endcol)) {
+    #save weather var
+    WV <- colnames(df)[i]
+    formuoli.ec <- paste(formuoli, "+ (", colnames(df)[i], ")")
+    m.ec <- lmer(formula(formuoli.ec), data = df, REML = FALSE)
+    #chi square test between the two
+    x2 <- anova(m.ec, model.noec)
+    #format the output
+    x2result <- x2[2, c(6,8)]
+    x2result$WeatherVar <- WV
+    colnames(x2result)[2] <- 'PVal'
+    x2result$Disease <- Yvar
+    rownames(x2result) <- NULL
+    #save it to the result table
+    result.df <- rbind(result.df, x2result)
+  }
+return(result.df)
+}
+
+# CALL FUNCTION
+ger.mostsigWV <- MostSigWVs(meta.windows2, Yvar = "GER_inc", Gvar = "Plot", Evar = "FieldYear.x", 
+                            Transform = "(", FirstWV = "X43to56_R.AH", LastWV = "X.27to.14_RH2M.90.rl.count6")
+
+fer.mostsigWV <- MostSigWVs(meta.windows2, Yvar = "FER_inc", Gvar = "Pedigree", Evar = "FieldYear.x", 
+                            Transform = "(", FirstWV = "X43to56_R.AH", LastWV = "X.27to.14_RH2M.90.rl.count6")
+
+insect.mostsigWV <- MostSigWVs(meta.windows2, Yvar = "Insect_inc", Gvar = "Pedigree", Evar = "FieldYear.x", 
+                            Transform = "(", FirstWV = "X43to56_R.AH", LastWV = "X.27to.14_RH2M.90.rl.count6")
+
+allsigwv <- do.call("rbind", list(ger.mostsigWV, fer.mostsigWV, insect.mostsigWV))
+
+# ORDER THE WINDOWS
+allsigwv[c("Window", "WeatherVariable")] <- str_split_fixed(allsigwv$WeatherVar, '_', 2)
+
+allsigwv$WindOrder <- with(allsigwv, ifelse(Window == "X43to56", 6, 
+                                            ifelse(Window == "X29to42", 5,
+                                                   ifelse(Window == "X15to28", 4,
+                                                          ifelse(Window == "X1to14", 3,
+                                                                 ifelse(Window == "X.13to0", 2,
+                                                                        ifelse(Window == "X.27to.14", 1, NA)))))))
+
+# EXPORT
+write.csv(allsigwv, "./../Output/MixedModelsWVs_14dayWindows_20250721.csv", row.names = F)
+
+

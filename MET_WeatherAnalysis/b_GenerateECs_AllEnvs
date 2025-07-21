@@ -1,0 +1,204 @@
+# GENERATING ECS FOR ALL ENVS
+
+# PACKAGES
+library(tidyverse)
+library(pollen)
+
+# LOAD AND FORMAT DATA
+all.wd <- read.csv("./../Output/RawWeatherData_AllFieldYears_20250716.csv", header = T)
+
+# CREATE LISTS
+fieldyears <- unique(all.wd$FIELDYEAR)
+my.list <- list()
+
+# FUNCTION TO GENERATE ECS
+weather.org <- function(df, path, name) {
+  #Rainfall - hours with rain
+  df$R.AH <- with(df,ifelse(PRECTOTCORR > 0, 1 ,0))
+  ##################
+  #####Humidity#####
+  #################
+  #RH >=80
+  df$RH2M.RH80 <- with(df, ifelse(RH2M >= 80, 1, 0))
+  #RH >=90
+  df$RH2M.RH90 <- with(df, ifelse(RH2M >= 90, 1, 0))
+  ##################
+  ###Temperature###
+  #################
+  # Was temp at or below 9C at earth surface
+  df$TS.L9 <- with(df, ifelse(TS <= 9, 1, 0))
+  # Was temp at or below 15C
+  df$TS.L15 <- with(df, ifelse(TS <= 15, 1, 0))
+  # at or below 20C
+  df$TS.L20 <- with(df, ifelse(TS <= 20, 1, 0))
+  #at or below 23 C
+  df$TS.L23 <- with(df, ifelse(TS <= 23, 1, 0))
+  # at or below 25
+  df$TS.L25 <- with(df, ifelse(TS <= 25, 1, 0))
+  # at or below 30
+  df$TS.L30 <- with(df, ifelse(TS <= 30, 1, 0))
+  # Was temp at or above 15C
+  df$TS.G15 <- with(df, ifelse(TS >= 15, 1, 0))
+  # Was temp at or above 20C
+  df$TS.G20 <- with(df, ifelse(TS >= 20, 1, 0))
+  # at or above 23C
+  df$TS.G23 <- with(df, ifelse(TS >= 23, 1, 0))
+  # at or above 25C
+  df$TS.G25 <- with(df, ifelse(TS >= 25, 1, 0))
+  #at or above 30C
+  df$TS.G30 <- with(df, ifelse(TS >= 30, 1, 0))
+  #same values but for air temp at 2M
+  # Was temp at or below 9C at 2M
+  df$T2M.L9 <- with(df, ifelse(T2M <= 9, 1, 0))
+  # Was temp at or below 15C
+  df$T2M.L15 <- with(df, ifelse(T2M <= 15, 1, 0))
+  # at or below 20C
+  df$T2M.L20 <- with(df, ifelse(T2M <= 20, 1, 0))
+  #at or below 23 C
+  df$T2M.L23 <- with(df, ifelse(T2M <= 23, 1, 0))
+  # at or below 25
+  df$T2M.L25 <- with(df, ifelse(T2M <= 25, 1, 0))
+  # at or below 30
+  df$T2M.L30 <- with(df, ifelse(T2M <= 30, 1, 0))
+  # Was temp at or above 15C
+  df$T2M.G15 <- with(df, ifelse(T2M >= 15, 1, 0))
+  # Was temp at or above 20C
+  df$T2M.G20 <- with(df, ifelse(T2M >= 20, 1, 0))
+  # at or above 23C
+  df$T2M.G23 <- with(df, ifelse(T2M >= 23, 1, 0))
+  # at or above 25C
+  df$T2M.G25 <- with(df, ifelse(T2M >= 25, 1, 0))
+  #at or above 30C
+  df$T2M.G30 <- with(df, ifelse(T2M >= 30, 1, 0))
+  ##########################
+  ###Between Temperatures###
+  #########################
+  # From 9 to 30 C at earth surface
+  df$TS.9T30 <- with(df, ifelse(TS >= 9 & TS <= 30, 1, 0))
+  # From 15 to 30 C
+  df$TS.15T30 <- with(df, ifelse(TS >= 15 & TS <= 30, 1, 0))
+  # From 20 to 30 C
+  df$TS.20T30 <- with(df, ifelse(TS >= 20 & TS <= 30, 1, 0))
+  # From 25 to 33 C
+  df$TS.25T33 <- with(df, ifelse(TS >= 25 & TS <= 33, 1, 0))
+  #now at 2M
+  df$T2M.9T30 <- with(df, ifelse(T2M >= 9 & T2M <= 30, 1, 0))
+  # From 15 to 30 C
+  df$T2M.15T30 <- with(df, ifelse(T2M >= 15 & T2M <= 30, 1, 0))
+  # From 20 to 30 C
+  df$T2M.20T30 <- with(df, ifelse(T2M >= 20 & T2M <= 30, 1, 0))
+  # From 25 to 33 C
+  df$T2M.25T33 <- with(df, ifelse(T2M >= 25 & T2M <= 33, 1, 0))
+
+  #######################################
+  ###Between Humidity and Temperatures###
+  #######################################
+  #Temp 15-30, RH >80
+  df$T2MRH2M.15T30nRH80 <- with(df, ifelse(T2M.15T30 == 1 & RH2M.RH80 == 1, 1, 0))
+  #Temp 15-30, RH>90
+  df$T2MRH2M.15T30nRH90 <- with(df, ifelse(T2M.15T30 == 1 & RH2M.RH90 == 1, 1, 0))
+  #Temp 9-30, RH>80
+  df$T2MRH2M.9T30nRH80 <- with(df, ifelse(T2M.9T30 == 1 & RH2M.RH80 == 1, 1, 0))
+  #Temp 9-30, RH>90
+  df$T2MRH2M.9T30nRH90 <- with(df, ifelse(T2M.9T30 == 1 & RH2M.RH90 == 1, 1, 0))
+  #####################
+  ###Other Variables###
+  #####################
+  #DPD - Dew point depression in C
+  df$DPD <- df$T2M - (((112 + (0.9*df$T2M))*(df$RH2M^0.125)) - 112 + (0.1*df$T2M))
+  #VPD - Vapor pressure deficit in kPa
+  e = exp(1)
+  df$SVP = (610.78 * e^((df$T2M/(df$T2M+237.3)) * 17.2694))/1000
+  df$VPD = df$SVP * (1-(df$RH2M/100))
+  ################################################################
+  #Reformating the Dataframe to make the more finalized dataframe#
+  ################################################################
+  df %>% group_by(DATE) %>% summarise(
+    #Rainfall
+    R.AH = sum(R.AH, na.rm = T), R.S = sum(PRECTOTCORR, na.rm = T),
+    #Humidity 2M
+    RH2M.A = mean(RH2M, na.rm = T), RH2M.min = min(RH2M, na.rm = T), RH2M.max = max(RH2M, na.rm = T),
+    RH2M.RH80 = sum(RH2M.RH80, na.rm = T), RH2M.RH90 = sum(RH2M.RH90),
+    #Temperature Surface
+    TS.A = mean(TS, na.rm = T), TS.min = min(TS, na.rm = T), TS.max = max(TS, na.rm = T), TS.Dif = (max(TS, na.rm = T) - min(TS, na.rm = T)),
+    TS.L9 = sum(TS.L9, na.rm = T), TS.L15 = sum(TS.L15, na.rm = T), TS.L20 = sum(TS.L20, na.rm = T),
+    TS.L23 = sum(TS.L23, na.rm = T), TS.L25 = sum(TS.L25, na.rm = T), TS.L30 = sum(TS.L30, na.rm = T),
+    TS.G15 = sum(TS.G15, na.rm = T), TS.G20 = sum(TS.G20, na.rm = T), TS.G23 = sum(TS.G23, na.rm = T),
+    TS.G25 = sum(TS.G25, na.rm = T), TS.G30 = sum(TS.G30, na.rm = T),
+    TS.9T30 = sum(TS.9T30, na.rm = T), TS.15T30 = sum(TS.15T30, na.rm = T),
+    TS.20T30 = sum(TS.20T30, na.rm = T), TS.25T33 = sum(TS.25T33, na.rm = T),
+    #Temperature 2M
+    T2M.A = mean(T2M, na.rm = T), T2M.min = min(T2M, na.rm = T), T2M.max = max(T2M, na.rm = T), T2M.Dif = (max(T2M, na.rm = T) - min(T2M, na.rm = T)),
+    T2M.L9 = sum(T2M.L9, na.rm = T), T2M.L15 = sum(T2M.L15, na.rm = T), T2M.L20 = sum(T2M.L20, na.rm = T),
+    T2M.L23 = sum(T2M.L23, na.rm = T), T2M.L25 = sum(T2M.L25, na.rm = T), T2M.L30 = sum(T2M.L30, na.rm = T),
+    T2M.G15 = sum(T2M.G15, na.rm = T), T2M.G20 = sum(T2M.G20, na.rm = T), T2M.G23 = sum(T2M.G23, na.rm = T),
+    T2M.G25 = sum(T2M.G25, na.rm = T), T2M.G30 = sum(T2M.G30, na.rm = T),
+    T2M.9T30 = sum(T2M.9T30, na.rm = T), T2M.15T30 = sum(T2M.15T30, na.rm = T),
+    T2M.20T30 = sum(T2M.20T30, na.rm = T), T2M.25T33 = sum(T2M.25T33, na.rm = T),
+    
+    #Temperature and Humidity at 2M
+    T2MRH2M.15T30nRH80 = sum(T2MRH2M.15T30nRH80, na.rm = T), T2MRH2M.15T30nRH90 = sum(T2MRH2M.15T30nRH90, na.rm = T),
+    T2MRH2M.9T30nRH80 = sum(T2MRH2M.9T30nRH80, na.rm = T), T2MRH2M.9T30nRH90 = sum(T2MRH2M.9T30nRH90, na.rm = T),
+    #Others
+    DPD = mean(DPD, na.rm = T), VPD = mean(VPD, na.rm = T),
+    DP2M.max = max(T2MDEW, na.rm = T), DP2M.min = min(T2MDEW, na.rm = T), DP2M.A = mean(T2MDEW, na.rm = T),
+    #soil temp and moistture
+    RM.max = max(GWETROOT, na.rm = T), RM.min = min(GWETROOT, na.rm = T), RM.A = mean(GWETROOT, na.rm = T),
+    SSM.max = max(GWETTOP, na.rm = T), SSM.min = min(GWETTOP, na.rm = T), SSM.A = mean(GWETTOP, na.rm = T),
+    TSL1.max = max(TSOIL1, na.rm = T), TSL1.min = min(TSOIL1, na.rm = T), TSL1.A = mean(TSOIL1, na.rm = T)
+  ) -> df.2
+  #################################################
+  #Consecutive hours of relative humidity in a day#
+  #################################################
+  #for RH80
+  df %>% group_by(DATE) %>%
+    reframe(lenghts.80 = rle(RH2M.RH80)$lengths, values.80 = rle(RH2M.RH80)$values) %>%
+    filter(values.80==1) %>% select(DATE, lenghts.80) -> rle.80
+  
+  rle.80 %>% group_by(DATE) %>% summarise(RH2M.80.rl.max = max(lenghts.80, na.rm = T)) -> max.rleRH80
+  #for RH90
+  df %>% group_by(DATE) %>%
+    reframe(lengths.90 = rle(RH2M.RH90)$lengths, values.90 = rle(RH2M.RH90)$values) %>%
+    filter(values.90==1) %>% select(DATE, lengths.90)-> rle.90
+  #
+  rle.90 %>% group_by(DATE) %>% summarise(RH2M.90.rl.max = max(lengths.90, na.rm = T)) -> max.rleRH90
+  #combine the 2 new dfs with the old df
+  Reduce(function(x,y) merge(x, y, by="DATE", all = T), list(df.2, max.rleRH80, max.rleRH90)) -> df.3
+  #in just the new  columns we added, replace NAs with 0 b/c there were 0 cumulative hours
+  df.3$RH2M.90.rl.max[is.na(df.3$RH2M.90.rl.max)] <- 0
+  df.3$RH2M.80.rl.max[is.na(df.3$RH2M.80.rl.max)] <- 0
+  ##################################
+  ##Cumulative growing degree days##
+  ##################################
+  df.3$GDD <- gdd(tmax = ((df.3$T2M.max * (9/5)) + 32), tmin = ((df.3$T2M.min * (9/5)) + 32),
+                  tbase = 50, tbase_max = 86)
+  #################################
+  #####More counting variables#####
+  #################################
+  # Rain on that day - Yes1/No0
+  df.3$R.PA <- with(df.3, ifelse(R.AH >0, 1, 0))
+  # At least 6 hours with RH>80 - Yes1/No0
+  df.3$RH2M.80.rl.count6 <- with(df.3, ifelse(RH2M.RH80 >= 6, 1, 0))
+  # At least 6 hours with RH>90 - Yes1/No0
+  df.3$RH2M.90.rl.count6 <- with(df.3, ifelse(RH2M.RH90 >= 6, 1, 0))
+  # Add the FieldYear Back in
+  df.3$FieldYear <- first(df$FIELDYEAR)
+  #output
+  return(df.3)
+  #Save it
+  #write.csv(df.3, file=paste(path,name,".csv", sep = ""), row.names = FALSE)
+}
+
+# CALL FUNCTION IN A LOOP
+for (i in c(1:length(fieldyears))) {
+  #do one fieldyear at a time
+  fy <- all.wd[all.wd$FIELDYEAR == fieldyears[[i]], ]
+  #run it through the function
+  fy.ec <- weather.org(fy, "./", "Ready2Slide")
+  #save it to my external list
+  my.list[[i]] <- fy.ec
+  }
+
+# MAKE FINAL DF
+all.ecs <- do.call(rbind, my.list)
+write.csv(all.ecs, "./../Output/OrganizedWeatherVariables/Ready2Slide_AllECs_20250716.csv", row.names = F)
