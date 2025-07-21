@@ -1,6 +1,8 @@
 # MET_EC
 Identifying key Environmental Covariates and quantifying their relationship associated with ear rot incidence in a multi-environment hybrid experiment
 
+Sarah Lipps is the creator and manager of this repository (slipps@illinois.edu)
+
 This manuscript is unpublished.
 
 ## a_NASAPower_WeatherDownload
